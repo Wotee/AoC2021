@@ -2,6 +2,8 @@ let input =
     System.IO.File.ReadAllLines("inputs/day3.txt")
     |> Array.map (seq >> Array.ofSeq)
 
+#time
+
 input
 |> Array.transpose
 |> Array.map (Array.sort >> fun bits -> bits.[bits.Length / 2])
@@ -22,6 +24,7 @@ let findCorrentValues (keepCorrect : int -> int[][]*int[][] -> int[][]) (input :
         | [|x|] -> x
         | inp -> inp |> Array.partition (fun x -> x.[n] = 0) |> keepCorrect n |> round (n+1)
     round 0 input
+
 [|(<);(>)|]
 |> Array.fold (fun r f ->
     parsed

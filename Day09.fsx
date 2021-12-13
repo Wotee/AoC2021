@@ -1,4 +1,3 @@
-// let input = System.IO.File.ReadAllLines("input/day9-sample.txt")
 let input = System.IO.File.ReadAllLines("input/day9.txt")
 
 let values = 
@@ -19,7 +18,7 @@ let findLowPoints map =
     |> Array2D.mapi (fun x y value ->
         adjacentCoordinates x y
         |> Array.forall (fun (x1, y1) -> Array2D.get values x1 y1 > value)
-        |> function  true -> Some (value + 1, x, y) | false -> None)
+        |> function true -> Some (value + 1, x, y) | false -> None)
     |> Seq.cast<(int*int*int) option>
     |> Seq.choose id
 

@@ -1,5 +1,7 @@
 let input = System.IO.File.ReadAllLines("inputs/day4.txt")
 
+#time
+
 let numbers = (Array.head input).Split(',') |> Array.toList
 
 type Board = (string*bool)[,]

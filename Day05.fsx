@@ -2,6 +2,8 @@ let input =
     System.IO.File.ReadAllLines("inputs/day5.txt")
     |> Array.map (fun x -> x.Split([|","; " -> "|], System.StringSplitOptions.None) |> Array.map int)
 
+#time
+
 let countOverlapping passThrough = 
     let step x y = if x < y then 1 else -1
     if passThrough then id else Array.filter (fun [|x1;y1;x2;y2|] -> x1 = x2 || y1 = y2)
@@ -11,7 +13,6 @@ let countOverlapping passThrough =
     >> Array.countBy id
     >> Array.sumBy (fun (_,value) -> System.Convert.ToInt32(value > 1))
 
-#time
 [|false;true|]
 |> Array.iteri (fun i passThrough ->
     countOverlapping passThrough input
