@@ -17,4 +17,3 @@ let countOverlapping passThrough =
     countOverlapping passThrough input
     |> printfn "Part %i: %i" (i+1)
 )
-#time
