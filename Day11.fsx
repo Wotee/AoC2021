@@ -7,7 +7,6 @@ module Dictionary =
         Seq.map (fun (KeyValue (k, v)) -> if k = key then k, f v else k, v) >> dict
 
 #time
-// let input = System.IO.File.ReadAllLines("inputs/day11-sample.txt")
 let input = System.IO.File.ReadAllLines("inputs/day11.txt")
 
 type Dictionary = System.Collections.Generic.IDictionary<int*int, int option>
@@ -55,5 +54,29 @@ let repeat n f =
 data
 |> repeat 100 round
 
-printfn "%A" flashCount
+printfn "Part 1: %i" flashCount
 
+let rec part2 n map =
+    let rec flashRound (map' : Dictionary) =
+        match map' |> findFlashing with
+        | [||] -> map'
+        | flashing -> 
+            let flashedMap = flashing |> Array.fold (fun acc coords -> acc |> Dictionary.mapSingle coords (fun _ -> None)) map'
+            let afterFlashMap =
+                flashing 
+                |> Array.collect (fun (x,y) -> getAdjacentCoordinates x y)
+                |> Array.fold (fun (acc : Dictionary) coords -> acc |> Dictionary.mapSingle coords (Option.map ((+) 1))
+                ) flashedMap
+            flashRound afterFlashMap
+    match map |> Seq.forall ((fun (KeyValue (_, v)) -> v |> Option.isNone)) with
+    | true -> n
+    | false ->
+        // First, set all previously flased ones to zero, and raise all energy levels by one
+        map
+        |> Dictionary.mapValue (function Some x -> Some (x+1) | None -> Some 1)
+        // Then do all the necessary flashrounds
+        |> flashRound
+        |> part2 (n+1)
+
+part2 0 data
+|> printfn "Part 2: %i"
