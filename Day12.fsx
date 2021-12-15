@@ -1,4 +1,3 @@
-// let input = System.IO.File.ReadAllLines("inputs/day12-sample.txt")
 let input = System.IO.File.ReadAllLines("inputs/day12.txt")
 
 #time
@@ -8,9 +7,7 @@ type Cave =
 
 module Cave =
     let fromString (x : string) = 
-        if System.Char.IsUpper x.[0]
-        then Large x
-        else Small x
+        if System.Char.IsUpper x.[0] then Large x else Small x
 
 type CaveMap = Map<Cave,Set<Cave>>
 module CaveMap =
@@ -28,22 +25,23 @@ let map =
         map |> CaveMap.add caves.[0] caves.[1]
     ) Map.empty
 
-let getRoutes (map : CaveMap) =
-    let rec getPossibleRoutes (step : Cave) currentRoute =
+let getRoutes (map : CaveMap) allowDoubleVisit = 
+    let rec getPossibleRoutes (step : Cave) currentRoute smallVisitedTwice = 
         seq {
             let newRoute = currentRoute @ [step]
             match step with
-            | Small "end" -> yield newRoute
+            | Small "end" -> yield newRoute // end always terminates
             | step ->
-                let nextSteps = map.[step]
-                let visitedSmallCaves = currentRoute |> List.filter (function Small _ -> true | _ -> false)
-                let possibleNextSteps = 
-                    nextSteps
-                    |> Set.filter (fun newStep -> visitedSmallCaves |> List.contains newStep |> not)
-                for step in possibleNextSteps do yield! getPossibleRoutes step newRoute
-        }
-    getPossibleRoutes (Small "start") List.empty
+                let visitedSmallCaves = newRoute |> List.filter (function Small _ -> true | _ -> false)
+                let visited = smallVisitedTwice || (visitedSmallCaves |> List.length) <> (visitedSmallCaves |> Set.ofList |> Set.count)
 
-getRoutes map
-|> Seq.length
-|> printfn "Part 1: %i"
+                let possibleNextSteps = 
+                    map.[step]
+                    |> Set.filter ((<>) (Small "start"))
+                    |> Set.filter (if visited then (fun newStep -> visitedSmallCaves |> List.contains newStep |> not) else fun _ -> true)
+
+                for step in possibleNextSteps do yield! getPossibleRoutes step newRoute visited
+        }
+    getPossibleRoutes (Small "start") List.empty (not allowDoubleVisit)
+
+[|false; true|] |> Array.iteri (fun i x -> getRoutes map x |> Seq.length |> printfn "Part %i: %i" (i+1))
