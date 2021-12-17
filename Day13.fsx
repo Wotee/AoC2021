@@ -21,7 +21,7 @@ points |> Set.map (foldInstructions |> Array.head) |> Set.count |> printfn "Part
 
 let result = 
     foldInstructions
-    |> Array.fold (fun (acc : (int*int) Set) (f : int*int -> int*int) -> Set.map f acc) points
+    |> Array.fold (fun acc f -> Set.map f acc) points
 
 let printPart2 points = 
     let maxX = points |> Seq.maxBy fst |> fst |> (+) 1
