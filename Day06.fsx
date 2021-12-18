@@ -1,21 +1,20 @@
-let input = System.IO.File.ReadAllText("inputs/day6.txt").Split(",") |> Array.map int |> Array.countBy id |> Map.ofArray
-
 #time
+let input =
+    System.IO.File.ReadAllText("inputs/day6.txt").Split(",")
+    |> Array.map int
+    |> Array.countBy id
+    |> Map.ofArray
 
-let intialState = Array.init 9 (input.TryFind >> Option.map int64 >> Option.defaultValue 0)
+let intialState =
+    Array.init 9 (input.TryFind >> Option.map int64 >> Option.defaultValue 0)
 
-let repeat n f = 
-    Array.init n (fun _ -> f) |> Array.reduce (>>)
-
-let step state =
-    let newState = [|yield! Array.tail state; yield Array.head state|]
-    newState[6] <- newState[6] + state[0]
-    newState
-
-[|80;256|]
-|> Array.iteri (fun i n ->
+let simulation = 
     intialState
-    |> repeat n step
-    |> Array.sum
-    |> printfn "Part %i: %i" (i+1)
-)
+    |> Seq.unfold (fun arr ->
+        let newState = [|yield! Array.tail arr; yield Array.head arr|]
+        newState[6] <- newState[6] + arr[0]
+        Some (Array.sum newState, newState)) 
+    |> Seq.cache
+
+simulation |> Seq.item 79 |> printfn "Part 1: %i"
+simulation |> Seq.item 255 |> printfn "Part 2: %i"
