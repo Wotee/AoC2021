@@ -12,6 +12,11 @@ and Packet =
        TypeId : int
        PacketData : PacketData  }
 
+let (|LiteralPacket|OperationPacket|) (x : string) = 
+    match System.Convert.ToInt32(x[3..5], 2) with
+    | 4 -> LiteralPacket x
+    | _ -> OperationPacket x
+
 let rec getPacketStrings (bStr: string) = 
     let literalValueSubString (bStr: string) = 
         let last = 
@@ -22,33 +27,23 @@ let rec getPacketStrings (bStr: string) =
             |> fun count -> 6 + ((count + 1) * 5) - 1
         bStr.[..last], bStr.[last + 1..]
     let operationSubString (bStr: string) = 
-        let lengthTypeID = System.Convert.ToInt32(bStr.[6] |> string)
-        let length = 
-            match lengthTypeID with
-            | 0 -> System.Convert.ToInt32(bStr.[7..21], 2)
-            | 1 -> System.Convert.ToInt32(bStr.[7..17], 2)
-            | _ -> failwith "Invalid Length Type ID."
         let last = 
-            match lengthTypeID with
-            | 0 -> 21 + length
-            | 1 -> 17 + (bStr.[18..] |> getPacketStrings |> Seq.truncate length |> Seq.concat |> Seq.length)
-            | _ -> failwith "Invalid Length Type ID."
+            match bStr[6] with
+            | '0' -> System.Convert.ToInt32(bStr.[7..21], 2) + 21
+            | _ ->
+                let len = System.Convert.ToInt32(bStr.[7..17], 2)
+                17 + (bStr.[18..] |> getPacketStrings |> Seq.truncate len |> Seq.concat |> Seq.length)
         bStr.[..last], bStr.[last + 1..]
-    let rec split (bStr: string) = 
+    let rec split (bStr : string) = 
         seq {
-            if bStr.Length < 11 then
-                yield None
-            else 
-                let typeID = System.Convert.ToInt32(bStr.[3..5], 2)
-                let (subString, rest) = 
-                    match typeID with
-                    | 4 ->
-                        literalValueSubString bStr
-                    | _ -> operationSubString bStr
-                yield Some subString
-                yield! split rest
+            let packet, rest = 
+                match bStr with
+                | LiteralPacket l -> literalValueSubString l
+                | OperationPacket o -> operationSubString o
+            yield packet
+            if rest.Length >= 11 then yield! split rest
         }
-    split bStr |> Seq.choose id
+    split bStr
 
 let rec parse (bStr: string) : Packet seq = 
     let parseLiteralValue (bStr: string) : PacketData =
