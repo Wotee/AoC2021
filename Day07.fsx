@@ -1,7 +1,6 @@
-let input =
-    System.IO.File.ReadAllText("./input/day7.txt").Split(',') |> Array.map float |> Array.sort
-
 #time
+let input =
+    System.IO.File.ReadAllText("./inputs/day7.txt").Split(',') |> Array.map float |> Array.sort
 
 let hackyMedian (sorted : float array)  = 
    sorted[sorted.Length/2]
