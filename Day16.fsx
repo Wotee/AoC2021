@@ -1,67 +1,85 @@
 let input = System.IO.File.ReadAllText("inputs/day16.txt")
-// let input = System.IO.File.ReadAllText("inputs/day16-sample.txt")
 
 let hexToBinary (c : char) = System.Convert.ToString(System.Convert.ToInt32(string c, 16), 2).PadLeft(4, '0')
 let convertHexToBinary : string -> string = (Seq.collect hexToBinary) >> System.String.Concat
 
 type PacketData =
     | LiteralValue of int64
-    | Operation of {| Packets: Packet seq |}
+    | Operation of Packet seq
 and Packet = 
     {  Version : int
        TypeId : int
        PacketData : PacketData  }
 
-let (|LiteralPacket|OperationPacket|) (x : string) = 
-    match System.Convert.ToInt32(x[3..5], 2) with
-    | 4 -> LiteralPacket x
-    | _ -> OperationPacket x
+module Packet = 
+    let rec sumVersions (packet : Packet) = 
+        match packet.PacketData with
+        | LiteralValue _ -> packet.Version
+        | Operation packets -> packet.Version + Seq.sumBy sumVersions packets 
 
-let rec getPacketStrings (bStr: string) = 
-    let literalValueSubString (bStr: string) = 
+    let rec evaluate (packet : Packet)  : int64 = 
+        let evaluateOperation (packets : Packet seq) f =
+            Seq.map evaluate packets |> f
+        let evaluateComparisonOperation o f =
+            evaluateOperation o (Seq.toArray >> fun a -> if f a[0] a[1] then 1 else 0)
+
+        match packet.TypeId, packet.PacketData with
+        | 0, Operation o -> evaluateOperation o (Seq.reduce (+))
+        | 1, Operation o -> evaluateOperation o (Seq.reduce (*))
+        | 2, Operation o -> evaluateOperation o (Seq.min)
+        | 3, Operation o -> evaluateOperation o (Seq.max)
+        | 4, LiteralValue x -> x
+        | 5, Operation o -> evaluateComparisonOperation o (>)
+        | 6, Operation o -> evaluateComparisonOperation o (<)
+        | 7, Operation o -> evaluateComparisonOperation o (=)
+        | _ -> failwith "Invalid combination"
+
+let rec (|LiteralPacket|OperationPacket|) (x : string) = 
+    match System.Convert.ToInt32(x[3..5], 2) with
+    | 4 ->
         let last = 
-            bStr.[6..]
+            x[6..]
             |> Seq.chunkBySize 5
-            |> Seq.takeWhile (fun chunk -> chunk.[0] = '1')
+            |> Seq.takeWhile (fun chunk -> chunk[0] = '1')
             |> Seq.length
             |> fun count -> 6 + ((count + 1) * 5) - 1
-        bStr.[..last], bStr.[last + 1..]
-    let operationSubString (bStr: string) = 
+        LiteralPacket (x[..last], x[last + 1..])
+    | _ ->
         let last = 
-            match bStr[6] with
-            | '0' -> System.Convert.ToInt32(bStr.[7..21], 2) + 21
+            match x[6] with
+            | '0' -> System.Convert.ToInt32(x[7..21], 2) + 21
             | _ ->
-                let len = System.Convert.ToInt32(bStr.[7..17], 2)
-                17 + (bStr.[18..] |> getPacketStrings |> Seq.truncate len |> Seq.concat |> Seq.length)
-        bStr.[..last], bStr.[last + 1..]
-    let rec split (bStr : string) = 
+                let len = System.Convert.ToInt32(x[7..17], 2)
+                17 + (x[18..] |> getPacketStrings |> Seq.truncate len |> Seq.concat |> Seq.length)
+        OperationPacket (x[..last], x[last + 1..])
+and getPacketStrings (input : string) = 
+    let rec split (x : string) = 
         seq {
-            let packet, rest = 
-                match bStr with
-                | LiteralPacket l -> literalValueSubString l
-                | OperationPacket o -> operationSubString o
-            yield packet
-            if rest.Length >= 11 then yield! split rest
+            match x with
+            | LiteralPacket (packet, rest)
+            | OperationPacket (packet, rest) ->
+                yield packet
+                if rest.Length >= 11 then
+                    yield! split rest
         }
-    split bStr
+    split input 
 
-let rec parse (bStr: string) : Packet seq = 
-    let parseLiteralValue (bStr: string) : PacketData =
-        bStr[6..]
+let rec parse (str: string) : Packet seq = 
+    let parseLiteralValue (str: string) : PacketData =
+        str[6..]
         |> Seq.chunkBySize 5
         |> Seq.filter (fun chunk -> chunk.Length = 5)
-        |> Seq.map (fun chunk -> chunk.[1..])
-        |> Seq.concat
-        |> fun chars -> chars |> Seq.toArray |> System.String
-        |> fun bstr -> System.Convert.ToInt64(bstr, 2)
+        |> Seq.collect Seq.tail
+        |> System.String.Concat
+        |> fun str -> System.Convert.ToInt64(str, 2)
         |> LiteralValue
-    let parseOperation (bStr: string) : PacketData =
-        let lengthTypeID = System.Convert.ToInt32(bStr.[6] |> string)
+    let parseOperation (str: string) : PacketData =
+        let lengthTypeID = System.Convert.ToInt32(str.[6] |> string)
         match lengthTypeID with
-        | 0 -> bStr[22..] |> parse
-        | _ -> bStr[18..] |> parse
-        |> fun x -> Operation {| Packets = x |}
-    bStr
+        | 0 -> str[22..] |> parse
+        | _ -> str[18..] |> parse
+        |> Operation
+    str
     |> getPacketStrings
     |> Seq.map (fun packetString -> 
         let typeId = System.Convert.ToInt32(packetString.[3..5], 2)
@@ -71,24 +89,11 @@ let rec parse (bStr: string) : Packet seq =
            PacketData = data }
     )
 
-let test1 = "8A004A801A8002F478" |> convertHexToBinary
-let test2 = "620080001611562C8802118E34" |> convertHexToBinary
-let test3 = "C0015000016115A2E0802F182340" |> convertHexToBinary
-let test4 = "A0016C880162017C3686B18A3D4780" |> convertHexToBinary
+let packet = 
+    input
+    |> convertHexToBinary
+    |> parse
+    |> Seq.exactlyOne
 
-let rec flatten (packet : Packet) = 
-    seq {
-        yield packet
-        match packet.PacketData with
-        | Operation op -> for p in op.Packets do yield! flatten p
-        | _ -> ()
-    }
-
-let solve = parse >> Seq.exactlyOne >> flatten >> Seq.sumBy (fun x -> x.Version)
-
-test1 |> solve |> printfn "16 = %i"
-test2 |> solve |> printfn "12 = %i"
-test3 |> solve |> printfn "23 = %i"
-test4 |> solve |> printfn "31 = %i"
-
-input |> convertHexToBinary |> solve |> printfn "Part 1: %i" // 895
+Packet.sumVersions packet |> printfn "Part 1: %i"
+Packet.evaluate packet |> printfn "Part 2: %i"
