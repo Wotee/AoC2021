@@ -4,10 +4,6 @@ let input = System.IO.File.ReadAllLines("inputs/day18.txt")
 type Number = 
     | Regular of int
     | Pair of Number * Number
-with override x.ToString() = 
-        match x with
-        | Regular d -> $"{d}"
-        | Pair (l, r) -> $"[{l},{r}]"
 
 type Dir = L | R
 module Number = 
@@ -78,18 +74,23 @@ module Number =
         | afterSplit, true -> reduce afterSplit
         | noSplit, false -> noSplit
 
-    let sum =
-        Array.reduce (fun acc elem ->
-            $"[{acc},{elem}]"
-            |> fromString
-            |> reduce
-            |> sprintf "%O")
-        >> fromString
-
-    let rec magnitude (x : Number) =
-        match x with
+    let rec magnitude = function
         | Regular r -> r
-        | Pair (l, r) ->
-            3 * (magnitude l) + 2 * (magnitude r)
+        | Pair (l, r) -> 3 * (magnitude l) + 2 * (magnitude r)
 
-input |> Number.sum |> Number.magnitude |> printfn "Part 1: %i"
+let numbers = 
+    input
+    |> Array.map Number.fromString
+
+let (+) a b = Pair(a, b) |> Number.reduce
+
+numbers
+|> Array.reduce (+)
+|> Number.magnitude
+|> printfn "Part 1: %i"
+
+Seq.allPairs (Seq.indexed numbers)(Seq.indexed numbers)
+|> Seq.choose (fun ((i,a), (j,b)) -> if i = j then None else Some (a,b))
+|> Seq.map (fun (a, b) -> max (Number.magnitude (a+b)) (Number.magnitude (b+a)))
+|> Seq.max
+|> printfn "Part 2: %i"
