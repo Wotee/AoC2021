@@ -12,8 +12,6 @@ let minX, maxX = Array.min xs, Array.max xs
 let max_v_y = -minY - 1
 max_v_y*(max_v_y + 1)/2 |> printfn "Part 1: %i"
 
-let combinatorial x = x*(x+1)/2
-
 let reverseCombinatorial x =
     let fx = float x
     let result = 0.5*((System.Math.Sqrt(8.*fx+1.))-1.)
@@ -23,8 +21,6 @@ let possibleYs = [minY..max_v_y]
 let min_v_x = reverseCombinatorial minX // Slower than this would never reach target xs
 let possibleXs = [min_v_x..(maxX / 2)] @ [minX..maxX]
 
-let pairs = List.allPairs possibleXs possibleYs
-
 let towardsZero x = if x > 0 then x - 1 else 0
 
 let isInTarget (x, y) = 
@@ -32,11 +28,12 @@ let isInTarget (x, y) =
 
 let trajectoryHitsTarget (v_x_start,v_y_start) =
     (0, 0, v_x_start, v_y_start)
-    |> Seq.unfold (fun ((xPos, yPos, v_x, v_y) as state) ->
+    |> Seq.unfold (fun ((xPos, yPos, v_x, v_y)) ->
         if xPos > maxX || yPos < minY then None
-        else Some (state, (xPos + v_x, yPos + v_y, towardsZero v_x, v_y - 1))) 
-    |> Seq.tail // Skip the 0,0
-    |> Seq.map (fun (x,y,_,_) -> (x, y))
+        else Some ((xPos, yPos), (xPos + v_x, yPos + v_y, towardsZero v_x, v_y - 1))) 
     |> Seq.exists isInTarget
 
-pairs |> Seq.filter trajectoryHitsTarget |> Seq.length |> printfn "Part 2: %i"
+List.allPairs possibleXs possibleYs
+|> Seq.filter trajectoryHitsTarget 
+|> Seq.length 
+|> printfn "Part 2: %i"
