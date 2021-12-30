@@ -5,13 +5,13 @@ let input =
     |> Array.countBy id
     |> Map.ofArray
 
-let intialState =
+let initialState =
     Array.init 9 (input.TryFind >> Option.map int64 >> Option.defaultValue 0)
 
 let simulation = 
-    intialState
+    initialState
     |> Seq.unfold (fun arr ->
-        let newState = [|yield! Array.tail arr; yield Array.head arr|]
+        let newState = arr |> Array.permute (fun x -> (x+8)%9) // Does a left rotate
         newState[6] <- newState[6] + arr[0]
         Some (Array.sum newState, newState)) 
     |> Seq.cache
