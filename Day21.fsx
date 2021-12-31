@@ -1,37 +1,56 @@
+#nowarn "40"
 #time
-let input = System.IO.File.ReadAllLines("inputs/day21.txt") |> Array.map (Seq.last >> string >> int)
+let input =
+    System.IO.File.ReadAllLines("inputs/day21.txt")
+    |> Array.map (Seq.last >> string >> int)
 
-let rollDeterministic =
-    let mutable result = 0
-    fun () ->
-        result <- result + 1
-        if result > 100 then result <- 1
-        result
-
-let position (pos: int) (rolls: int array) =
-    match (Array.sum rolls + pos) % 10 with
+let position p rolls =
+    match (p + rolls) % 10 with
     | 0 -> 10
     | x -> x
 
-let game p1StartPos p2Startpos =
-    ((p1StartPos, 0), (p2Startpos, 0))
-    |> Seq.unfold (fun ((p1Pos, p1Points), (p2Pos, p2Points)) ->
-        if p1Points >= 1000 || p2Points >= 1000 then
-            None
-        else
-            let newP1Pos = position p1Pos (Array.init 3 (fun _ -> rollDeterministic ()))
-            let newP1Points = p1Points + newP1Pos
-            let newP2Pos = position p2Pos (Array.init 3 (fun _ -> rollDeterministic ()))
-            let newP2Points = p2Points + newP2Pos
-            Some ((p1Points, p2Points), ((newP1Pos, newP1Points), (newP2Pos, newP2Points)))
-    ) |> Seq.cache
+let play p1Pos p2Pos = 
+    let rec turn pos otherPos score otherScore rolls = 
+        match otherScore >= 1000 with
+        | true -> score * rolls
+        | false ->
+            let newPos = position pos (6 + rolls * 3)
+            turn otherPos newPos otherScore (score + newPos) (rolls + 3)
+    turn p1Pos p2Pos 0 0 0 
 
-let getAnswer (res : (int*int) seq) =
-    let len = Seq.length res * 6
-    match Seq.last res with
-    | (p1, p2) when p1 < p2 -> p1 * len
-    | (_, p2) -> p2 * (len - 3) // Second player didn't roll
-
-game input[0] input[1]
-|> getAnswer
+play input[0] input[1]
 |> printfn "Part 1: %i"
+
+let diracDice = 
+    let r = [|1;2;3|]
+    Array.allPairs r r 
+    |> Array.allPairs r
+    |> Array.map (fun (x, (y, z)) -> x + y + z)
+    |> Array.countBy id
+
+let memoize fn = 
+    let cache = new System.Collections.Generic.Dictionary<_,_>()
+    fun key ->
+        match cache.TryGetValue key with
+        | true, v -> v
+        | false, _ ->
+            let v = fn key
+            cache.Add(key, v)
+            v
+
+let playWithDiracDice p1 p2 =
+    let rec round = memoize (fun (pos, otherPos, score, otherScore) ->
+        let countWin (wins1, wins2) (total, count) = 
+            let newPos = position pos total
+            let newScore = score + newPos
+            let w2, w1 = round(otherPos, newPos, otherScore, newScore)
+            wins1 + w1 * (int64 count), wins2 + w2 * (int64 count)
+        match otherScore >= 21 with
+        | true -> 0, 1
+        | false -> Array.fold countWin (0, 0) diracDice
+    )
+    round (p1, p2, 0, 0)
+    |> fun (x, y) -> max x y
+
+playWithDiracDice input[0] input[1]
+|> printfn "Part 2: %i"
