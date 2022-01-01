@@ -1,4 +1,3 @@
-#nowarn "40"
 #time
 let input =
     System.IO.File.ReadAllLines("inputs/day21.txt")
@@ -38,18 +37,19 @@ let memoize fn =
             cache.Add(key, v)
             v
 
+let rec round (pos, otherPos, score, otherScore) =
+    let countWin (wins1, wins2) (total, count) = 
+        let newPos = position pos total
+        let newScore = score + newPos
+        let w2, w1 = memoizedRound(otherPos, newPos, otherScore, newScore)
+        wins1 + w1 * (int64 count), wins2 + w2 * (int64 count)
+    match otherScore >= 21 with
+    | true -> 0L, 1L
+    | false -> Array.fold countWin (0, 0) diracDice
+and memoizedRound = memoize round
+
 let playWithDiracDice p1 p2 =
-    let rec round = memoize (fun (pos, otherPos, score, otherScore) ->
-        let countWin (wins1, wins2) (total, count) = 
-            let newPos = position pos total
-            let newScore = score + newPos
-            let w2, w1 = round(otherPos, newPos, otherScore, newScore)
-            wins1 + w1 * (int64 count), wins2 + w2 * (int64 count)
-        match otherScore >= 21 with
-        | true -> 0, 1
-        | false -> Array.fold countWin (0, 0) diracDice
-    )
-    round (p1, p2, 0, 0)
+    memoizedRound (p1, p2, 0, 0)
     |> fun (x, y) -> max x y
 
 playWithDiracDice input[0] input[1]
